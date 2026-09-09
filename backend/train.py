@@ -90,7 +90,7 @@ def train():
     y_mitre_list = []
     
     # --- 1. Load CIC-IDS-2018 ---
-    cic_path = r"C:\Users\spodc\Downloads\CyberOracle-main\cic-ids2018\sample_cic2018.csv"
+    cic_path = os.path.join(os.path.dirname(__file__), "datasets", "cic-ids2018", "sample_cic2018.csv")
     if os.path.exists(cic_path):
         print(f"Parsing {cic_path}")
         df_cic = pd.read_csv(cic_path)
@@ -107,7 +107,7 @@ def train():
         print(f"  -> Extracted {len(X_cic)} vectors from CIC-IDS-2018")
     
     # --- 2. Load CTU-13 ---
-    ctu_base_dir = r"C:\Users\spodc\Downloads\CyberOracle-main\ctu-13\CTU-13-Dataset"
+    ctu_base_dir = os.path.join(os.path.dirname(__file__), "datasets", "ctu-13")
     ctu_files = glob.glob(os.path.join(ctu_base_dir, "**", "*.binetflow"), recursive=True)
     
     print(f"Found {len(ctu_files)} CTU-13 dataset files.")
