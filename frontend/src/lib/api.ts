@@ -20,9 +20,16 @@ type JsonBody = unknown;
 
 async function request<T>(method: string, path: string, body?: JsonBody): Promise<T> {
   // Auth rides the httpOnly session cookie automatically — never add auth headers here.
+  const headers: Record<string, string> = {
+    "Bypass-Tunnel-Reminder": "true", // Bypasses localtunnel warning screen
+  };
+  if (body !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const res = await fetch(`${BASE}${path}`, {
     method,
-    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 
