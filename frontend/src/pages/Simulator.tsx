@@ -101,10 +101,10 @@ export default function Simulator() {
 
   // WebSocket for live packet events
   useEffect(() => {
-    const wsUrl =
-      (window.location.protocol === "https:" ? "wss://" : "ws://") +
-      window.location.host +
-      "/api/live/stream";
+    const baseApiUrl = import.meta.env.VITE_API_URL || "";
+    const wsUrl = baseApiUrl
+      ? baseApiUrl.replace(/^http/, "ws") + "/live/stream"
+      : (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/api/live/stream";
     const ws = new WebSocket(wsUrl);
     ws.onmessage = (ev) => {
       try {
