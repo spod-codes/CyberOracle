@@ -13,10 +13,7 @@ export default function AppHeader() {
   const dashboardPath = evaluationId ? `/dashboard/${evaluationId}` : "/";
   const briefingPath = evaluationId ? `/briefing/${evaluationId}` : "/";
 
-  useEffect(() => {
-    document.documentElement.classList.remove("aegis-dark");
-    window.localStorage.setItem("aegis-theme", "light");
-  }, []);
+
 
   useEffect(() => {
     if (pathEvaluationId) {

@@ -1,3 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+
++
 @import "@fontsource-variable/space-grotesk";
 @import "@fontsource/ibm-plex-mono";
 @import "tailwindcss";
@@ -266,3 +269,7 @@ body { background: #f8fafc ; color: #0f172a ; }
   .db-section-pair { grid-template-columns: 1fr; }
   .live-ribbon { grid-template-columns: repeat(2, 1fr); }
 }
+
+
+h1, h2, h3, .briefing-title h1, .briefing-section-title h2, .panel-heading h2, .dashboard-topline h1 { font-family: 'Playfair Display', serif !important; letter-spacing: -0.02em; }
+
