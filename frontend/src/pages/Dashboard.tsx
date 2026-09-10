@@ -1,17 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, Edit3, FileText, Filter, Gauge, MessageSquare, Pause, Play, RefreshCw, RotateCcw, Search, Send, ShieldAlert, Sparkles, Target, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, CircleHelp, Download, Edit3, FileText, MessageSquare, Pause, Play, RefreshCw, RotateCcw, Send, ShieldAlert, Target, Trash2, X } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis, Radar, RadarChart, PolarGrid, PolarAngleAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import AppHeader from "@/components/AppHeader";
 import KernelTestConsole from "@/components/KernelTestConsole";
 import { Button } from "@/components/ui/button";
 import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
 import type { DeleteResponse, EvaluationRecord, FlowAlert, ReplayNote, ReplayNoteCreate, ReplayNoteUpdate } from "@/lib/types";
-
-const metricNames: Record<string, string> = { f1: "F1 score", precision: "Precision", recall: "Recall", false_positive_rate: "False positive" };
 
 function percent(value: number) { return `${Math.round(value * 100)}%`; }
 function riskTone(value: number) { return value >= 0.82 ? "critical" : value >= 0.62 ? "high" : value >= 0.38 ? "medium" : "low"; }
@@ -21,9 +19,6 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const [severity, setSeverity] = useState("All severities");
-  const [stage, setStage] = useState("All stages");
-  const [query, setQuery] = useState("");
   const [horizonView, setHorizonView] = useState(8);
   const [replayIndex, setReplayIndex] = useState(0);
   const [isReplaying, setIsReplaying] = useState(false);
@@ -35,10 +30,6 @@ export default function Dashboard() {
   const evaluation = useQuery({ queryKey: ["evaluation", evaluationId], queryFn: () => apiGet<EvaluationRecord>(`/evaluations/${evaluationId}`), enabled: Boolean(evaluationId), retry: false });
   const data = evaluation.data;
 
-  const visibleFlows = useMemo(() => {
-    if (!data) return [];
-    return data.flows.filter((flow) => (severity === "All severities" || flow.severity === severity) && (stage === "All stages" || flow.stage === stage) && `${flow.source} ${flow.destination} ${flow.protocol} ${flow.signal}`.toLowerCase().includes(query.toLowerCase()));
-  }, [data, query, severity, stage]);
   const chartData = useMemo(() => {
     if (!data) return [];
     const observed = data.timeline.filter((point) => point.kind === "observed");

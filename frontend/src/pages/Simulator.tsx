@@ -35,6 +35,7 @@ type PacketEvent = {
   is_campaign?: boolean;
   current_pps?: number;
   pattern_risk?: number;
+  features?: Record<string, number>;
 };
 
 type CampaignStatus = {

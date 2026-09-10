@@ -1,26 +1,23 @@
 import { useEffect, useState } from "react";
-import { Activity, FileText, House, LayoutDashboard, Zap } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { FileText, House, LayoutDashboard } from "lucide-react";
+import { Link, useLocation, useParams } from "react-router-dom";
 
 export default function AppHeader() {
+  const { evaluationId: paramEvaluationId } = useParams();
   const location = useLocation();
-  const dashboardActive = location.pathname.startsWith("/dashboard") || location.pathname.startsWith("/briefing");
-  const liveActive = location.pathname.startsWith("/live");
-  const simulatorActive = location.pathname.startsWith("/simulator");
-  const pathEvaluationId = dashboardActive ? location.pathname.split("/").filter(Boolean)[1] : null;
   const [lastEvaluationId, setLastEvaluationId] = useState(() => window.localStorage.getItem("cyber-oracle-last-evaluation"));
-  const evaluationId = pathEvaluationId ?? lastEvaluationId;
+  const evaluationId = paramEvaluationId ?? lastEvaluationId;
   const dashboardPath = evaluationId ? `/dashboard/${evaluationId}` : "/";
   const briefingPath = evaluationId ? `/briefing/${evaluationId}` : "/";
 
 
 
   useEffect(() => {
-    if (pathEvaluationId) {
-      window.localStorage.setItem("cyber-oracle-last-evaluation", pathEvaluationId);
-      setLastEvaluationId(pathEvaluationId);
+    if (paramEvaluationId) {
+      window.localStorage.setItem("cyber-oracle-last-evaluation", paramEvaluationId);
+      setLastEvaluationId(paramEvaluationId);
     }
-  }, [pathEvaluationId]);
+  }, [paramEvaluationId]);
 
   const dockItem = "dock-item";
   const disabledDockItem = `${dockItem} dock-item-disabled`;
