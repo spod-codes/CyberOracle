@@ -64,7 +64,7 @@ def predict_mitre(X: np.ndarray) -> list[MitrePrediction]:
         if c in MITRE_CLASSES:
             scored_classes.append((c, mean_proba[i]))
             
-    ranked = sorted(scored_classes, key=lambda x: x[1], reverse=True)[:3]
+    ranked = sorted(scored_classes, key=lambda x: x[1], reverse=True)
     
     predictions = []
     for i, (class_id, conf) in enumerate(ranked):

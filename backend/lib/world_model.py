@@ -353,15 +353,38 @@ def run_world_model(raw: bytes, filename: str, architecture: str, horizon: int, 
 
     model_status = f"Active | {arch_status} | SHAP={shap_computed} | MITRE={len(mitre_predictions)} classes"
 
-    # MITRE stage tracker
+    # MITRE stage tracker (show all stages chronologically)
     stages = []
-    for pred in mitre_predictions:
+    
+    # Create a dictionary of probabilities from the predictions
+    prob_dict = {p.class_id: p.confidence for p in mitre_predictions}
+    
+    # Determine the "current" stage (highest probability)
+    current_class_id = 0
+    if mitre_predictions:
+        current_class_id = sorted(mitre_predictions, key=lambda x: x.confidence, reverse=True)[0].class_id
+        
+    # The chronological order of attack stages
+    from lib.mitre_classifier import MITRE_CLASSES
+    chronological_ids = [0, 1, 2, 3, 4, 5]
+    
+    for i, cid in enumerate(chronological_ids):
+        stage, tech_id, tech_name = MITRE_CLASSES[cid]
+        prob = prob_dict.get(cid, 0.0)
+        
+        if cid == current_class_id:
+            status = "current"
+        elif i < chronological_ids.index(current_class_id):
+            status = "complete"
+        else:
+            status = "pending"
+            
         stages.append(StagePoint(
-            name=pred.stage,
-            short_name=pred.technique_id,
-            probability=pred.confidence,
-            status="predicted",
-            tactic=pred.technique_name,
+            name=stage,
+            short_name=tech_id,
+            probability=prob,
+            status=status,
+            tactic=tech_name,
         ))
 
     return EvaluationRecord(
