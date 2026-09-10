@@ -180,37 +180,21 @@ export default function Dashboard() {
           {/* Divider */}
           <div className="pi-divider" />
 
-          {/* Right: signal & model metadata */}
-          <div className="pi-right">
-            <div className="pi-signal-row">
-              <Gauge size={18} style={{ color: "var(--pi-accent, #6fa481)", flexShrink: 0 }} />
-              <div>
-                <div className="pi-fwd-prob">{percent(data.forecast_probability)}</div>
-                <small className="metric-overline">forward infiltration probability</small>
-              </div>
-              <div className={`signal-badge tone-${riskTone(data.forecast_probability)}`} style={{ marginLeft: "auto" }}>
-                <span className="status-dot" /> {data.forecast_stage.toUpperCase()} <ArrowUpRight size={13} />
-              </div>
-            </div>
-
-            <p className="pi-signal-copy">
-              The latent state is trending toward <strong>{data.forecast_stage}</strong>. The rollout detects coordinated behaviour before a static classifier would cross the alert threshold.
-            </p>
-
-            <div className="pi-model-grid">
-              <div className="pi-model-item"><span>MODEL</span><strong>{data.architecture}</strong></div>
-              <div className="pi-model-item"><span>EXPLANATION</span><strong>{data.explainability}</strong></div>
-              <div className="pi-model-item"><span>WINDOW / HORIZON</span><strong>{data.window_size} rows / K={data.horizon}</strong></div>
-              <div className="pi-model-item"><span>CONTEXT SENSITIVITY</span><strong>{data.context_multiplier.toFixed(2)}×</strong></div>
-            </div>
-
-            <div className="model-note">
-              <Sparkles size={14} />
-              <span>
-                <strong>World-model reasoning</strong>
-                <small>state transition momentum + cross-feature evidence</small>
-              </span>
-            </div>
+          {/* Right: graphic warning */}
+          <div className="pi-right" style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: "24px" }}>
+             <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
+                <div style={{ background: "rgba(255, 77, 48, 0.1)", borderRadius: "50%", padding: "16px" }}>
+                   <ShieldAlert size={42} color="#ff4d30" />
+                </div>
+                <div>
+                   <h3 style={{ fontSize: "24px", color: "#edf4ef", margin: 0 }}>Attack in progress</h3>
+                   <p style={{ color: "#adbbb2", margin: 0, marginTop: "4px" }}>The AI has confidently identified a coordinated attack.</p>
+                </div>
+             </div>
+             <p style={{ fontSize: "15px", lineHeight: "1.6", color: "#edf4ef", margin: 0, borderLeft: "4px solid #00e5ff", paddingLeft: "16px" }}>
+                The attacker has breached the network and is currently performing <strong>{data.current_stage}</strong>. 
+                Based on current momentum, they are projected to escalate to <strong>{data.forecast_stage}</strong> within the next {data.lead_windows} time steps.
+             </p>
           </div>
         </section>
 
@@ -324,10 +308,10 @@ export default function Dashboard() {
         </section>
 
         {/* ══════════════════════════════════════════════════
-            SECTION 04 + 05 — EXPLAINABILITY & MODEL LEDGER
+            SECTION 04 — EXPLAINABILITY
         ══════════════════════════════════════════════════ */}
-        <section className="evidence-grid db-section-pair">
-          <div className="attribution-panel" data-testid="explainability-panel">
+        <section className="evidence-grid">
+          <div className="attribution-panel" data-testid="explainability-panel" style={{ width: "100%" }}>
             <div className="panel-heading">
               <div>
                 <div className="section-kicker" title="Network signals that most influenced the prediction."><span>04</span> EXPLAINABILITY / {data.explainability.toUpperCase()}</div>
@@ -368,30 +352,19 @@ export default function Dashboard() {
                      <div key={a.feature} style={{ marginBottom: "12px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "4px", color: "#1f302c" }}>
                            <strong>{a.feature}</strong>
-                           <span>{a.value}</span>
+                           <span style={{ color: a.direction === "increases risk" ? "#e77969" : "#5e9870" }}>{a.weight * 100}%</span>
                         </div>
-                        <div style={{ height: "8px", background: "#f0f5f2", borderRadius: "4px", overflow: "hidden" }}>
-                           <div style={{ height: "100%", width: `${a.weight * 100}%`, background: a.direction.includes("increases") ? "#ff2a55" : "#3b82f6" }} />
+                        <div style={{ width: "100%", height: "4px", backgroundColor: "#e1ebe3", borderRadius: "2px", overflow: "hidden" }}>
+                           <div style={{ width: `${a.weight * 100}%`, height: "100%", backgroundColor: a.direction === "increases risk" ? "#e77969" : "#5e9870" }} />
                         </div>
                      </div>
                   ))}
                 </div>
               )}
             </div>
-          </div>
-
-            <div className="benchmark-panel" data-testid="benchmark-panel">
-            <div className="panel-heading">
-              <div>
-                <div className="section-kicker" title="Compares the time-aware world model with the same RF at a fixed threshold (no temporal smoothing)."><span>05</span> MODEL LEDGER</div>
-                <h2>Dynamics vs static baseline</h2>
-              </div>
-              <span className="benchmark-chip"><ArrowUpRight size={13} /> temporal lift</span>
+            <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid #2b3b31" }}>
+               <KernelTestConsole evaluationId={data.id} />
             </div>
-            <div className="benchmark-head"><span /><strong>WORLD MODEL</strong><strong>RF THRESHOLD BASELINE</strong></div>
-            {Object.keys(data.benchmark.world_model).map((key) => <div className="benchmark-row" key={key}><span>{metricNames[key] ?? key}</span><strong>{percent(data.benchmark.world_model[key])}</strong><span>{percent(data.benchmark.logistic_baseline[key])}</span><em>{data.benchmark.lift[key] >= 0 ? "+" : ""}{percent(data.benchmark.lift[key])}</em></div>)}
-            <div className="benchmark-foot"><ShieldAlert size={15} /><span>{data.benchmark.source} · {data.benchmark.labelled_rows ? `${data.benchmark.labelled_rows} labelled rows` : "estimated comparison"}</span></div>
-            <KernelTestConsole evaluationId={data.id} />
           </div>
         </section>
 
