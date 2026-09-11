@@ -1,19 +1,16 @@
 @echo off
 echo ========================================================
-echo     CYBERORACLE - SIH 2026 PRESENTATION BOOTSTRAPPER
+echo     CYBERORACLE - LOCAL BOOTSTRAPPER
 echo ========================================================
 
-echo [1/3] Starting MongoDB database in the background...
-start /b "" "C:\Users\spodc\mongodb\mongodb-win32-x86_64-windows-8.0.4\bin\mongod.exe" --dbpath "c:\Users\spodc\mongodb\data\db"
-
-echo [2/3] Starting FastAPI Backend Engine...
+echo [1/2] Starting FastAPI Backend Engine...
 cd backend
-start /b "" python -m uvicorn server:app --port 8001
+start "CyberOracle Backend" /b python -m uvicorn server:app --port 8000
 cd ..
 
-echo [3/3] Starting React Frontend...
+echo [2/2] Starting React Frontend...
 cd frontend
-start /b "" npm run dev
+start "CyberOracle Frontend" /b npm run dev
 cd ..
 
 echo.
