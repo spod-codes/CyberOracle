@@ -51,6 +51,30 @@ async def list_evaluations():
     return [EvaluationListItem(**document) for document in documents]
 
 
+from fastapi.responses import FileResponse
+import os
+import glob
+
+@router.get("/datasets")
+async def list_datasets():
+    base_dir = os.path.join(os.path.dirname(__file__), "..", "datasets")
+    files = glob.glob(os.path.join(base_dir, "**", "*.*"), recursive=True)
+    datasets = []
+    for f in files:
+        if f.endswith(".csv") or f.endswith(".binetflow"):
+            rel_path = os.path.relpath(f, base_dir)
+            datasets.append({"id": rel_path.replace("\\", "/"), "name": os.path.basename(f), "size": os.path.getsize(f)})
+    return datasets
+
+@router.get("/datasets/{dataset_id:path}")
+async def get_dataset(dataset_id: str):
+    base_dir = os.path.join(os.path.dirname(__file__), "..", "datasets")
+    file_path = os.path.join(base_dir, dataset_id.replace("/", os.sep))
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    return FileResponse(file_path)
+
+
 @router.get("/{evaluation_id}", response_model=EvaluationRecord)
 async def get_evaluation(evaluation_id: str):
     document = await db.evaluations.find_one({"id": evaluation_id})
@@ -131,30 +155,32 @@ async def run_kernel_test(evaluation_id: str):
     document = await db.evaluations.find_one({"id": evaluation_id})
     if not document:
         raise HTTPException(status_code=404, detail="Evaluation not found.")
-        
+    import sys
     from pathlib import Path
-    import subprocess
     import asyncio
     
     script_path = Path(__file__).parent.parent / "kernel_cli.py"
     
-    # Bypass the web sandbox: Physically pop open a native PowerShell window on the Windows desktop
-    command = f'start powershell.exe -NoExit -Command "Write-Host \'[CYBER ORACLE KERNEL NATIVE EXECUTION]\' -ForegroundColor Cyan; python {script_path.name} --evaluation {evaluation_id}"'
-    
+    # Run the kernel_cli python script in the background and capture its stdout
     try:
-        subprocess.Popen(command, shell=True, cwd=str(script_path.parent))
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable, str(script_path), "--evaluation", evaluation_id,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            cwd=str(script_path.parent)
+        )
+        stdout, _ = await proc.communicate()
+        raw_logs = stdout.decode("utf-8", errors="replace").strip().split('\n')
+        # Clean up carriage returns
+        real_logs = [line.strip() for line in raw_logs if line.strip()]
     except Exception as e:
-        pass
+        real_logs = [f"[error] Failed to execute kernel diagnostics: {e}"]
 
     elapsed = max(1, round((time.perf_counter() - started) * 1000))
 
     return KernelTestResult(
-        status="passed",
-        logs=[
-            "> [system] Bypassing web sandbox constraint...",
-            "> [system] Native Windows PowerShell kernel spawned on host OS.",
-            "> [system] Please check your computer desktop for the new terminal window."
-        ],
+        status="passed" if proc.returncode == 0 else "failed",
+        logs=real_logs,
         checks={"native_kernel_spawned": True},
         metrics={},
         duration_ms=elapsed,

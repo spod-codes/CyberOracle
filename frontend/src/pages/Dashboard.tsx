@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, CircleHelp, Download, Edit3, FileText, MessageSquare, Pause, Play, RefreshCw, RotateCcw, Send, ShieldAlert, Target, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, Edit3, FileText, Filter, Gauge, MessageSquare, Pause, Play, RefreshCw, RotateCcw, Search, Send, ShieldAlert, Sparkles, Target, Trash2, X } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis, Radar, RadarChart, PolarGrid, PolarAngleAxis } from "recharts";
 
 import AppHeader from "@/components/AppHeader";
 import KernelTestConsole from "@/components/KernelTestConsole";
 import { Button } from "@/components/ui/button";
 import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
 import type { DeleteResponse, EvaluationRecord, FlowAlert, ReplayNote, ReplayNoteCreate, ReplayNoteUpdate } from "@/lib/types";
+
+const metricNames: Record<string, string> = { f1: "F1 score", precision: "Precision", recall: "Recall", false_positive_rate: "False positive" };
 
 function percent(value: number) { return `${Math.round(value * 100)}%`; }
 function riskTone(value: number) { return value >= 0.82 ? "critical" : value >= 0.62 ? "high" : value >= 0.38 ? "medium" : "low"; }
@@ -19,6 +21,9 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const [severity, setSeverity] = useState("All severities");
+  const [stage, setStage] = useState("All stages");
+  const [query, setQuery] = useState("");
   const [horizonView, setHorizonView] = useState(8);
   const [replayIndex, setReplayIndex] = useState(0);
   const [isReplaying, setIsReplaying] = useState(false);
@@ -30,6 +35,10 @@ export default function Dashboard() {
   const evaluation = useQuery({ queryKey: ["evaluation", evaluationId], queryFn: () => apiGet<EvaluationRecord>(`/evaluations/${evaluationId}`), enabled: Boolean(evaluationId), retry: false });
   const data = evaluation.data;
 
+  const visibleFlows = useMemo(() => {
+    if (!data) return [];
+    return data.flows.filter((flow) => (severity === "All severities" || flow.severity === severity) && (stage === "All stages" || flow.stage === stage) && `${flow.source} ${flow.destination} ${flow.protocol} ${flow.signal}`.toLowerCase().includes(query.toLowerCase()));
+  }, [data, query, severity, stage]);
   const chartData = useMemo(() => {
     if (!data) return [];
     const observed = data.timeline.filter((point) => point.kind === "observed");
@@ -196,7 +205,7 @@ export default function Dashboard() {
           <div className="panel-heading">
             <div>
               <div className="section-kicker" title="Shows how the risk changes over time.">
-                TEMPORAL INFILTRATION TIMELINE
+                <span>01</span> TEMPORAL INFILTRATION TIMELINE
               </div>
               <h2>Probability of converging toward compromise</h2>
             </div>
@@ -242,7 +251,7 @@ export default function Dashboard() {
         <section className="replay-panel db-section" data-testid="analyst-replay-panel">
           <div className="panel-heading">
             <div>
-              <div className="section-kicker">ANALYST REPLAY</div>
+              <div className="section-kicker"><span>02</span> ANALYST REPLAY</div>
               <h2>Walk the state before the forecast</h2>
               <p>Scrub observed windows or play the trajectory to inspect how evidence shifts.</p>
             </div>
@@ -290,7 +299,7 @@ export default function Dashboard() {
         <section className="stage-panel db-section" data-testid="mitre-stage-panel">
           <div className="panel-heading">
             <div>
-              <div className="section-kicker" title="The standard stages used to describe how an attack moves through a network.">ATTACKER PROGRESSION</div>
+              <div className="section-kicker" title="The standard stages used to describe how an attack moves through a network."><span>03</span> ATTACKER PROGRESSION</div>
               <h2>MITRE ATT&amp;CK trajectory mapping</h2>
             </div>
             <span className="mapping-note"><CircleHelp size={14} /> predicted state mapping</span>
@@ -305,7 +314,7 @@ export default function Dashboard() {
           <div className="attribution-panel" data-testid="explainability-panel" style={{ width: "100%" }}>
             <div className="panel-heading">
               <div>
-                <div className="section-kicker" title="Network signals that most influenced the prediction.">EXPLAINABILITY / {data.explainability.toUpperCase()}</div>
+                <div className="section-kicker" title="Network signals that most influenced the prediction."><span>04</span> EXPLAINABILITY / {data.explainability.toUpperCase()}</div>
                 <h2>What is driving the trajectory?</h2>
               </div>
               <span className="verified-label"><span className="status-dot" /> evidence attached</span>
@@ -357,24 +366,33 @@ export default function Dashboard() {
                <KernelTestConsole evaluationId={data.id} />
             </div>
           </div>
+        </section>
 
-          <div className="flow-panel" data-testid="flow-explorer" style={{ display: "flex", flexDirection: "column" }}>
-            <div className="panel-heading">
-              <div>
-                <div className="section-kicker">FLAGGED TRAFFIC</div>
-                <h2>Anomalous network flows</h2>
-              </div>
-              <div className="flow-summary"><span className="summary-dot" /> {data.flows.length} critical packets</div>
+        {/* ══════════════════════════════════════════════════
+            SECTION 06 — TELEMETRY EXPLORER
+        ══════════════════════════════════════════════════ */}
+        <section className="flow-panel db-section" data-testid="flow-explorer">
+          <div className="panel-heading">
+            <div>
+              <div className="section-kicker"><span>06</span> TELEMETRY EXPLORER</div>
+              <h2>Flagged network flows <span className="flow-count">{visibleFlows.length} / {data.flows.length}</span></h2>
             </div>
-            
-            <div className="flow-table-wrap" style={{ flex: 1, overflowY: "auto", border: "1px solid #2b3b31", borderRadius: "8px" }}>
-              <table className="flow-table" style={{ width: "100%", textAlign: "left", fontSize: "13px" }}>
-                <thead><tr><th style={{ padding: "8px 12px" }}>Flow / Time</th><th style={{ padding: "8px 12px" }}>Source → Destination</th><th style={{ padding: "8px 12px" }}>Risk</th></tr></thead>
-                <tbody>{data.flows.slice(0, 8).map((flow: FlowAlert) => <tr key={flow.id} style={{ borderBottom: "1px solid #2b3b31" }} data-testid={`flagged-flow-row-${flow.id}`}><td style={{ padding: "8px 12px" }}><strong>{flow.id}</strong><br/><small style={{ color: "#8fa096" }}>{flow.timestamp}</small></td><td style={{ padding: "8px 12px" }}><strong>{flow.source}</strong><br/><small style={{ color: "#8fa096" }}>→ {flow.destination}</small></td><td style={{ padding: "8px 12px" }}><strong className={`risk-text tone-text-${riskTone(flow.risk)}`}>{percent(flow.risk)}</strong><br/><small style={{ color: "#ff4d30" }}>{flow.signal}</small></td></tr>)}</tbody>
-              </table>
-            </div>
-            <div className="flow-footer" style={{ marginTop: "12px", fontSize: "12px", color: "#8fa096" }}><span>Showing top 8 most malicious records</span></div>
+            <div className="flow-summary"><span className="summary-dot" /> {data.rows.toLocaleString()} rows analyzed <span className="summary-separator" /> {data.features} fields mapped</div>
           </div>
+          <div className="filter-bar">
+            <label className="search-field"><Search size={15} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search host, protocol, signal…" data-testid="flow-search-input" />{query && <button onClick={() => setQuery("")} aria-label="Clear flow search"><X size={13} /></button>}</label>
+            <label className="filter-select"><Filter size={14} /><select value={severity} onChange={(e) => setSeverity(e.target.value)} data-testid="severity-filter"><option>All severities</option><option>Critical</option><option>High</option><option>Medium</option><option>Low</option></select><ChevronDown size={13} /></label>
+            <label className="filter-select"><select value={stage} onChange={(e) => setStage(e.target.value)} data-testid="stage-filter"><option>All stages</option><option>Reconnaissance</option><option>Initial Access</option><option>Lateral Movement</option><option>Command &amp; Control</option><option>Exfiltration</option></select><ChevronDown size={13} /></label>
+            <button className="reset-filter" onClick={() => { setQuery(""); setSeverity("All severities"); setStage("All stages"); }} data-testid="reset-flow-filters">reset filters</button>
+          </div>
+          <div className="flow-table-wrap">
+            <table className="flow-table">
+              <thead><tr><th>FLOW ID / TIME</th><th>SOURCE → DESTINATION</th><th>PROTOCOL</th><th>FLAGS</th><th>ATT&amp;CK STAGE</th><th>RISK</th></tr></thead>
+              <tbody>{visibleFlows.slice(0, 12).map((flow: FlowAlert) => <tr key={flow.id} data-testid={`flagged-flow-row-${flow.id}`}><td><strong>{flow.id}</strong><small>{flow.timestamp}</small></td><td><strong>{flow.source}</strong><small>→ {flow.destination}</small></td><td><span className="protocol-tag">{flow.protocol}</span></td><td className="mono-cell">{flow.flags}</td><td><span className={`stage-tag tone-${riskTone(flow.risk)}`}>{flow.stage}</span><small>{flow.signal}</small></td><td><strong className={`risk-text tone-text-${riskTone(flow.risk)}`}>{percent(flow.risk)}</strong><span className="mini-risk"><span style={{ width: `${flow.risk * 100}%` }} /></span></td></tr>)}</tbody>
+            </table>
+            {visibleFlows.length === 0 && <div className="empty-flows" data-testid="empty-flow-state"><Search size={18} /> No flows match these filters.</div>}
+          </div>
+          <div className="flow-footer"><span>Showing top 12 risk-ranked records</span><span className="data-source"><span className="status-dot" /> local CSV source</span></div>
         </section>
       </main>
     </div>

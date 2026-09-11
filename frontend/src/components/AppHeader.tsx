@@ -1,23 +1,29 @@
 import { useEffect, useState } from "react";
-import { FileText, House, LayoutDashboard } from "lucide-react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Activity, FileText, House, LayoutDashboard, Zap } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 
 export default function AppHeader() {
-  const { evaluationId: paramEvaluationId } = useParams();
   const location = useLocation();
+  const dashboardActive = location.pathname.startsWith("/dashboard") || location.pathname.startsWith("/briefing");
+  const liveActive = location.pathname.startsWith("/live");
+  const simulatorActive = location.pathname.startsWith("/simulator");
+  const pathEvaluationId = dashboardActive ? location.pathname.split("/").filter(Boolean)[1] : null;
   const [lastEvaluationId, setLastEvaluationId] = useState(() => window.localStorage.getItem("cyber-oracle-last-evaluation"));
-  const evaluationId = paramEvaluationId ?? lastEvaluationId;
+  const evaluationId = pathEvaluationId ?? lastEvaluationId;
   const dashboardPath = evaluationId ? `/dashboard/${evaluationId}` : "/";
   const briefingPath = evaluationId ? `/briefing/${evaluationId}` : "/";
 
-
+  useEffect(() => {
+    document.documentElement.classList.remove("aegis-dark");
+    window.localStorage.setItem("aegis-theme", "light");
+  }, []);
 
   useEffect(() => {
-    if (paramEvaluationId) {
-      window.localStorage.setItem("cyber-oracle-last-evaluation", paramEvaluationId);
-      setLastEvaluationId(paramEvaluationId);
+    if (pathEvaluationId) {
+      window.localStorage.setItem("cyber-oracle-last-evaluation", pathEvaluationId);
+      setLastEvaluationId(pathEvaluationId);
     }
-  }, [paramEvaluationId]);
+  }, [pathEvaluationId]);
 
   const dockItem = "dock-item";
   const disabledDockItem = `${dockItem} dock-item-disabled`;

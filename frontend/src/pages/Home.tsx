@@ -11,40 +11,7 @@ import { Button } from "@/components/ui/button";
 import { apiGet, apiUpload, ApiError } from "@/lib/api";
 import type { EvaluationListItem, EvaluationRecord } from "@/lib/types";
 
-// Preset 1 — DDoS UDP Flood (volumetric attack with massive packet sizes)
-const CSV_DDOS = `Timestamp,Src IP,Src Port,Dst IP,Dst Port,Protocol,Flow Duration,Total Fwd Packets,Total Length of Fwd Packets,Flow IAT Mean,TTL Mean,TCP Flags,Label
-2024-06-12T09:00:00Z,203.0.113.55,4444,10.0.8.20,80,UDP,500,9200,88000000,0.05,48,,DDoS
-2024-06-12T09:00:01Z,198.51.100.7,5555,10.0.8.20,80,UDP,500,8800,84000000,0.04,47,,DDoS
-2024-06-12T09:00:01Z,185.220.101.3,6666,10.0.8.20,80,UDP,500,9400,90000000,0.03,46,,DDoS
-2024-06-12T09:00:02Z,203.0.113.88,7777,10.0.8.20,80,UDP,500,9100,87500000,0.04,48,,DDoS
-2024-06-12T09:00:02Z,198.51.100.42,8888,10.0.8.20,80,UDP,500,8600,82000000,0.05,47,,DDoS
-2024-06-12T09:00:03Z,45.33.32.156,9999,10.0.8.20,80,UDP,500,9500,91000000,0.03,46,,DDoS`;
-
-// Preset 2 — Ransomware Lateral Movement (SMB scanning + credential brute force)
-const CSV_RANSOMWARE = `Timestamp,Src IP,Src Port,Dst IP,Dst Port,Protocol,Flow Duration,Total Fwd Packets,Total Length of Fwd Packets,Flow IAT Mean,TTL Mean,TCP Flags,Label
-2024-06-12T10:00:00Z,10.0.4.201,49821,10.0.4.10,445,TCP,18000,280,48000,20,128,SYN|ACK,LateralMovement
-2024-06-12T10:00:18Z,10.0.4.201,49822,10.0.4.11,445,TCP,22000,340,62000,18,128,SYN|RST,LateralMovement
-2024-06-12T10:00:40Z,10.0.4.201,49823,10.0.4.12,445,TCP,19000,310,55000,21,128,SYN|ACK,Ransomware
-2024-06-12T10:01:05Z,10.0.4.201,49824,10.0.4.13,3389,TCP,25000,420,76000,15,128,SYN|PSH|ACK,Ransomware
-2024-06-12T10:01:32Z,10.0.4.201,49825,10.0.4.14,22,TCP,31000,580,98000,12,128,PSH|ACK|URG,Ransomware
-2024-06-12T10:02:01Z,10.0.4.201,49826,10.0.4.0,445,TCP,8000,120,22000,60,128,SYN|RST,Ransomware`;
-
-// Preset 3 — APT Reconnaissance + Exfiltration chain
-const CSV_APT = `Timestamp,Src IP,Src Port,Dst IP,Dst Port,Protocol,Flow Duration,Total Fwd Packets,Total Length of Fwd Packets,Flow IAT Mean,TTL Mean,TCP Flags,Label
-2024-06-12T08:00:00Z,10.0.1.45,53112,10.0.8.100,22,TCP,3200,6,480,120,61,SYN|ACK,Reconnaissance
-2024-06-12T08:00:15Z,10.0.1.45,53113,10.0.8.101,3389,TCP,8400,18,2800,85,59,SYN|RST,PortScan
-2024-06-12T08:00:38Z,10.0.1.45,53114,10.0.8.102,445,TCP,14000,44,7100,55,54,SYN|ACK,PortScan
-2024-06-12T08:01:05Z,10.0.1.45,53115,185.220.101.9,443,TCP,42000,280,95000,22,52,PSH|ACK,Exfiltration
-2024-06-12T08:01:48Z,10.0.1.45,53116,185.220.101.9,443,TCP,68000,420,175000,18,51,PSH|ACK|URG,Exfiltration
-2024-06-12T08:02:35Z,10.0.1.45,53117,185.220.101.9,53,UDP,12000,180,42000,40,50,,DNSTunnel`;
-
 const THREAT_ART_URL = "/threat-identity.png";
-
-const presetRows = [
-  { label: "DDoS Flood simulation", detail: "6 rows · volumetric UDP flood", file: "ddos-flood.csv", csv: CSV_DDOS, description: "A multi-source UDP DDoS volumetric attack trace is ready for ML analysis." },
-  { label: "Ransomware lateral move", detail: "6 rows · SMB + credential pivot", file: "ransomware-lateral.csv", csv: CSV_RANSOMWARE, description: "A ransomware SMB lateral movement and credential brute-force trace is ready." },
-  { label: "APT recon + exfiltration", detail: "6 rows · staged APT chain", file: "apt-exfil.csv", csv: CSV_APT, description: "An APT reconnaissance-to-exfiltration chain trace is ready for ML analysis." },
-];
 
 
 interface DatasetInspection {
@@ -145,10 +112,24 @@ export default function Home() {
     setDragging(false);
     void selectFile(event.dataTransfer.files[0]);
   };
-  const loadSample = (sampleName: string, csvContent: string, description: string) => {
-    const sampleFile = new File([csvContent], sampleName, { type: "text/csv" });
-    void selectFile(sampleFile);
-    toast.success("Sample trace loaded", { description });
+  const datasets = useQuery({ queryKey: ["datasets"], queryFn: () => apiGet<{id: string, name: string, size: number}[]>("/evaluations/datasets") });
+
+  const loadSample = async (id: string, name: string) => {
+    toast.info("Downloading dataset...", { description: name });
+    const baseUrl = import.meta.env.VITE_API_URL || "/api";
+    try {
+      const res = await fetch(`${baseUrl}/evaluations/datasets/${id}`, {
+        headers: { "Bypass-Tunnel-Reminder": "true" }
+      });
+      const blob = await res.blob();
+      const sampleFile = new File([blob], name, { type: "text/csv" });
+      const parsed = inspectCsv(await sampleFile.text());
+      setFile(sampleFile);
+      setInspection(parsed);
+      toast.success("Dataset loaded", { description: `${name} is ready.` });
+    } catch (err) {
+      toast.error("Failed to load dataset");
+    }
   };
 
   return (
@@ -185,8 +166,15 @@ export default function Home() {
               <span className="drop-action">{file ? "Choose another file" : "or browse local files"} <ArrowRight size={14} /></span>
             </label>
             <div className="preset-strip" data-testid="sample-presets">
-              <div className="preset-heading"><span>QUICK LOAD</span><small>deterministic demo traces</small></div>
-              {presetRows.map((preset, index) => <button key={preset.file} className="preset-row" onClick={() => loadSample(preset.file, preset.csv, preset.description)} data-testid={`sample-preset-${index + 1}`}><span className="preset-number">0{index + 1}</span><span><strong>{preset.label}</strong><small>{preset.detail}</small></span><ChevronRight size={15} /></button>)}
+              <div className="preset-heading"><span>REAL DATASETS</span><small>actual sampled .csv files</small></div>
+              {datasets.isLoading && <p style={{ padding: "12px", opacity: 0.5, fontSize: "12px" }}>Loading datasets from disk...</p>}
+              {datasets.data?.map((preset, index) => (
+                 <button key={preset.id} className="preset-row" onClick={() => loadSample(preset.id, preset.name)} data-testid={`sample-preset-${index + 1}`}>
+                   <span className="preset-number">0{index + 1}</span>
+                   <span><strong>{preset.name}</strong><small>{(preset.size / 1024).toFixed(1)} KB real traffic trace</small></span>
+                   <ChevronRight size={15} />
+                 </button>
+              ))}
             </div>
           </div>
 
