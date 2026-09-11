@@ -5,12 +5,12 @@ echo ========================================================
 
 echo [1/2] Starting FastAPI Backend Engine...
 cd backend
-start "CyberOracle Backend" /b python -m uvicorn server:app --port 8000
+start "CyberOracle Backend" python -m uvicorn server:app --port 8000
 cd ..
 
 echo [2/2] Starting React Frontend...
 cd frontend
-start "CyberOracle Frontend" /b npm run dev
+start "CyberOracle Frontend" npm run dev
 cd ..
 
 echo.
